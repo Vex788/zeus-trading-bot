@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Zeus Trading Bot</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/webjars/bootstrap/css/bootstrap.min.css">
+    <script src="/webjars/jquery/jquery.min.js"></script>
+    <script src="/webjars/bootstrap/js/bootstrap.min.js"></script>
+    <script src="/webjars/sockjs-client/sockjs.min.js"></script>
+    <script src="/webjars/stomp-websocket/stomp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card {
+            margin-bottom: 20px;
+        }
+        .indicator {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .indicator-title {
+            font-weight: bold;
+        }
+        .prediction-up {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .prediction-down {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .position-card {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .position-profit {
+            color: #155724;
+        }
+        .position-loss {
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">Zeus Trading Bot</h1>
+        
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Currency Pairs</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group" id="currency-pairs">
+                            <a th:each="pair : ${currencyPairs}" 
+                               th:text="${pair}" 
+                               href="#" 
+                               class="list-group-item list-group-item-action"
+                               onclick="selectCurrencyPair(this.innerText)"></a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Create Order</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="order-form">
+                            <div class="form-group">
+                                <label for="order-type">Type</label>
+                                <select class="form-control" id="order-type">
+                                    <option value="BUY">Buy</option>
+                                    <option value="SELL">Sell</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="order-amount">Amount</label>
+                                <input type="number" class="form-control" id="order-amount" step="0.001" min="0.001" value="0.001">
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="createOrder()">Create Order</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 id="selected-pair">Select a currency pair</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Current Price: <span id="current-price">-</span></h6>
+                                <h6>Last Update: <span id="last-update">-</span></h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div id="prediction" class="indicator">
+                                    <div class="indicator-title">Prediction</div>
+                                    <div id="prediction-value">-</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <canvas id="price-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="indicator">
+                                    <div class="indicator-title">RSI</div>
+                                    <div id="rsi-value">-</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="indicator">
+                                    <div class="indicator-title">MACD</div>
+                                    <div id="macd-value">-</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="indicator">
+                                    <div class="indicator-title">Bollinger Bands</div>
+                                    <div>Upper: <span id="bb-upper">-</span></div>
+                                    <div>Middle: <span id="bb-middle">-</span></div>
+                                    <div>Lower: <span id="bb-lower">-</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Open Positions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="positions-container">
+                            <div class="text-center">No open positions</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let stompClient = null;
+        let priceChart = null;
+        let selectedPair = null;
+        
+        function connect() {
+            const socket = new SockJS('/trading-websocket');
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, function(frame) {
+                console.log('Connected: ' + frame);
+                
+                // Subscribe to all currency pairs
+                document.querySelectorAll('#currency-pairs a').forEach(element => {
+                    const pair = element.innerText;
+                    stompClient.subscribe('/topic/trading-data/' + pair, function(message) {
+                        const tradingData = JSON.parse(message.body);
+                        if (tradingData.currencyPair === selectedPair) {
+                            updateTradingData(tradingData);
+                        }
+                    });
+                });
+            });
+        }
+        
+        function selectCurrencyPair(pair) {
+            selectedPair = pair;
+            document.getElementById('selected-pair').innerText = pair;
+            
+            // Load initial data
+            fetch('/api/trading-data?currencyPair=' + pair)
+                .then(response => response.json())
+                .then(data => {
+                    updateTradingData(data);
+                });
+        }
+        
+        function updateTradingData(data) {
+            // Update price and timestamp
+            document.getElementById('current-price').innerText = data.currentPrice || '-';
+            document.getElementById('last-update').innerText = data.timestamp ? new Date(data.timestamp).toLocaleString() : '-';
+            
+            // Update indicators
+            document.getElementById('rsi-value').innerText = data.rsiValue ? data.rsiValue.toFixed(2) : '-';
+            document.getElementById('macd-value').innerText = data.macdValue ? data.macdValue.toFixed(2) : '-';
+            document.getElementById('bb-upper').innerText = data.bollingerUpper ? data.bollingerUpper.toFixed(2) : '-';
+            document.getElementById('bb-middle').innerText = data.bollingerMiddle ? data.bollingerMiddle.toFixed(2) : '-';
+            document.getElementById('bb-lower').innerText = data.bollingerLower ? data.bollingerLower.toFixed(2) : '-';
+            
+            // Update prediction
+            const predictionElement = document.getElementById('prediction');
+            const predictionValueElement = document.getElementById('prediction-value');
+            
+            if (data.predictedUp !== undefined) {
+                predictionElement.className = 'indicator ' + (data.predictedUp ? 'prediction-up' : 'prediction-down');
+                predictionValueElement.innerText = data.predictedUp ? 'UP ↑' : 'DOWN ↓';
+            } else {
+                predictionElement.className = 'indicator';
+                predictionValueElement.innerText = '-';
+            }
+            
+            // Update chart
+            updateChart(data.priceHistory);
+            
+            // Update positions
+            updatePositions(data.openPositions);
+        }
+        
+        function updateChart(priceHistory) {
+            if (!priceHistory || priceHistory.length === 0) {
+                return;
+            }
+            
+            const labels = priceHistory.map(point => new Date(point.timestamp).toLocaleTimeString());
+            const prices = priceHistory.map(point => point.price);
+            
+            if (!priceChart) {
+                const ctx = document.getElementById('price-chart').getContext('2d');
+                priceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Price',
+                            data: prices,
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+            } else {
+                priceChart.data.labels = labels;
+                priceChart.data.datasets[0].data = prices;
+                priceChart.update();
+            }
+        }
+        
+        function updatePositions(positions) {
+            const container = document.getElementById('positions-container');
+            
+            if (!positions || positions.length === 0) {
+                container.innerHTML = '<div class="text-center">No open positions</div>';
+                return;
+            }
+            
+            let html = '';
+            positions.forEach(position => {
+                const profitLossClass = position.profitLoss >= 0 ? 'position-profit' : 'position-loss';
+                
+                html += `
+                    <div class="position-card">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div><strong>ID:</strong> ${position.id}</div>
+                                <div><strong>Currency Pair:</strong> ${position.currencyPair}</div>
+                                <div><strong>Amount:</strong> ${position.amount}</div>
+                                <div><strong>Entry Price:</strong> ${position.entryPrice}</div>
+                                <div><strong>Entry Date:</strong> ${new Date(position.entryDate).toLocaleString()}</div>
+                                <div><strong>Current Price:</strong> ${position.currentPrice}</div>
+                                <div><strong>Profit/Loss:</strong> <span class="${profitLossClass}">${position.profitLoss}</span></div>
+                                <div><strong>Status:</strong> ${position.status}</div>
+                            </div>
+                            <div class="col-md-4 text-right">
+                                <button class="btn btn-danger" onclick="closePosition('${position.id}')">Close Position</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function createOrder() {
+            if (!selectedPair) {
+                alert('Please select a currency pair first');
+                return;
+            }
+            
+            const type = document.getElementById('order-type').value;
+            const amount = document.getElementById('order-amount').value;
+            
+            fetch('/api/create-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `currencyPair=${selectedPair}&type=${type}&amount=${amount}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Order created successfully');
+                } else {
+                    alert('Failed to create order: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
+        }
+        
+        function closePosition(positionId) {
+            fetch('/api/close-position', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `positionId=${positionId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Position closed successfully');
+                } else {
+                    alert('Failed to close position: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
+        }
+        
+        // Connect to WebSocket when the page loads
+        window.onload = function() {
+            connect();
+        };
+    </script>
+</body>
+</html>
