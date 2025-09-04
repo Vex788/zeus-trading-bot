@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title} ?: 'Crypto Trading Bot'">Crypto Trading Bot</title>
+    
+    <!-- Bootstrap CSS -->
+    <link th:href="@{/webjars/bootstrap/5.2.0/css/bootstrap.min.css}" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script th:src="@{/webjars/chart.js/3.9.1/chart.min.js}"></script>
+    
+    <!-- Custom CSS -->
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.75rem 1rem;
+            margin: 0.25rem 0;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-running { background-color: #28a745; }
+        .status-stopped { background-color: #dc3545; }
+        .status-paused { background-color: #ffc107; }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .metric-card.positive {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .metric-card.negative {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+        
+        .trading-pair-badge {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+        }
+        
+        .btn-trading {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-trading:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .loading .loading-spinner {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-line me-2"></i>
+                Crypto Trading Bot
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item">
+                    <span class="nav-link">
+                        <span class="status-indicator" th:classappend="${botStatus == 'RUNNING' ? 'status-running' : (botStatus == 'PAUSED' ? 'status-paused' : 'status-stopped')}"></span>
+                        <span th:text="${botStatus}">Status</span>
+                        <span class="badge bg-secondary ms-2" th:text="${botMode}">Mode</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/" th:classappend="${#httpServletRequest.requestURI == '/' ? 'active' : ''}">
+                                <i class="fas fa-tachometer-alt me-2"></i>
+                                Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/config" th:classappend="${#httpServletRequest.requestURI == '/config' ? 'active' : ''}">
+                                <i class="fas fa-cog me-2"></i>
+                                Configuration
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/analytics" th:classappend="${#httpServletRequest.requestURI == '/analytics' ? 'active' : ''}">
+                                <i class="fas fa-chart-bar me-2"></i>
+                                Analytics
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/history" th:classappend="${#httpServletRequest.requestURI == '/history' ? 'active' : ''}">
+                                <i class="fas fa-history me-2"></i>
+                                Trading History
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div th:replace="${content}">
+                    <!-- Page content will be inserted here -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script th:src="@{/webjars/bootstrap/5.2.0/js/bootstrap.bundle.min.js}"></script>
+    
+    <!-- jQuery -->
+    <script th:src="@{/webjars/jquery/3.6.0/jquery.min.js}"></script>
+    
+    <!-- SockJS and STOMP for WebSocket -->
+    <script th:src="@{/webjars/sockjs-client/1.5.1/sockjs.min.js}"></script>
+    <script th:src="@{/webjars/stomp-websocket/2.3.4/stomp.min.js}"></script>
+    
+    <!-- Font Awesome -->
+    <script src="https://kit.fontawesome.com/your-font-awesome-kit.js" crossorigin="anonymous"></script>
+    
+    <!-- Custom JavaScript -->
+    <script th:inline="javascript">
+        // WebSocket connection for real-time updates
+        let stompClient = null;
+        
+        function connect() {
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function (frame) {
+                console.log('Connected: ' + frame);
+                
+                // Subscribe to trading updates
+                stompClient.subscribe('/topic/trading-updates', function (message) {
+                    const update = JSON.parse(message.body);
+                    handleTradingUpdate(update);
+                });
+                
+                // Subscribe to market data updates
+                stompClient.subscribe('/topic/market-data', function (message) {
+                    const marketData = JSON.parse(message.body);
+                    handleMarketDataUpdate(marketData);
+                });
+                
+                // Subscribe to portfolio updates
+                stompClient.subscribe('/topic/portfolio', function (message) {
+                    const portfolio = JSON.parse(message.body);
+                    handlePortfolioUpdate(portfolio);
+                });
+            });
+        }
+        
+        function disconnect() {
+            if (stompClient !== null) {
+                stompClient.disconnect();
+            }
+            console.log("Disconnected");
+        }
+        
+        function handleTradingUpdate(update) {
+            console.log('Trading update:', update);
+            // Update UI based on trading update
+            updateBotStatus(update);
+        }
+        
+        function handleMarketDataUpdate(marketData) {
+            console.log('Market data update:', marketData);
+            // Update market data displays
+            updateMarketData(marketData);
+        }
+        
+        function handlePortfolioUpdate(portfolio) {
+            console.log('Portfolio update:', portfolio);
+            // Update portfolio displays
+            updatePortfolio(portfolio);
+        }
+        
+        function updateBotStatus(update) {
+            if (update.type === 'BOT_STATUS') {
+                const status = update.data.status;
+                const mode = update.data.mode;
+                
+                // Update status indicator
+                const indicator = document.querySelector('.status-indicator');
+                if (indicator) {
+                    indicator.className = 'status-indicator';
+                    if (status === 'RUNNING') {
+                        indicator.classList.add('status-running');
+                    } else if (status === 'PAUSED') {
+                        indicator.classList.add('status-paused');
+                    } else {
+                        indicator.classList.add('status-stopped');
+                    }
+                }
+                
+                // Update status text
+                const statusText = indicator?.nextElementSibling;
+                if (statusText) {
+                    statusText.textContent = status;
+                }
+                
+                // Update mode badge
+                const modeBadge = document.querySelector('.badge');
+                if (modeBadge) {
+                    modeBadge.textContent = mode;
+                }
+            }
+        }
+        
+        function updateMarketData(marketData) {
+            // Implementation depends on specific page
+            if (typeof updateMarketDataDisplay === 'function') {
+                updateMarketDataDisplay(marketData);
+            }
+        }
+        
+        function updatePortfolio(portfolio) {
+            // Implementation depends on specific page
+            if (typeof updatePortfolioDisplay === 'function') {
+                updatePortfolioDisplay(portfolio);
+            }
+        }
+        
+        // Utility functions
+        function formatCurrency(amount, currency = 'USD') {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: currency
+            }).format(amount);
+        }
+        
+        function formatPercent(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'percent',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value / 100);
+        }
+        
+        function showLoading(element) {
+            element.classList.add('loading');
+        }
+        
+        function hideLoading(element) {
+            element.classList.remove('loading');
+        }
+        
+        function showToast(message, type = 'info') {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            toast.style.top = '20px';
+            toast.style.right = '20px';
+            toast.style.zIndex = '9999';
+            toast.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(toast);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 5000);
+        }
+        
+        // Connect to WebSocket when page loads
+        $(document).ready(function() {
+            connect();
+        });
+        
+        // Disconnect when page unloads
+        $(window).on('beforeunload', function() {
+            disconnect();
+        });
+    </script>
+    
+    <!-- Page-specific scripts -->
+    <div th:replace="${scripts}">
+        <!-- Page-specific JavaScript will be inserted here -->
+    </div>
+</body>
+</html>

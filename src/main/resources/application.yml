@@ -1,0 +1,125 @@
+spring:
+  application:
+    name: crypto-trading-bot
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:h2:mem:tradingdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+  
+  # Web Configuration
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+  
+  # Security
+  security:
+    user:
+      name: admin
+      password: admin123
+      roles: ADMIN
+
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# Trading Bot Configuration
+trading:
+  bot:
+    # Operating mode: PRODUCTION or SHADOW
+    mode: SHADOW
+    
+    # Initial virtual balance for shadow mode
+    virtual-balance: 100.0
+    
+    # KuCoin API Configuration (encrypted in production)
+    kucoin:
+      api-key: ${KUCOIN_API_KEY:}
+      secret-key: ${KUCOIN_SECRET_KEY:}
+      passphrase: ${KUCOIN_PASSPHRASE:}
+      sandbox: true
+    
+    # Neural Network Configuration
+    neural-network:
+      learning-rate: 0.001
+      epochs: 100
+      batch-size: 32
+      hidden-layers: [64, 32, 16]
+      input-features: 20
+      
+    # Risk Management
+    risk:
+      max-position-size-percent: 10.0
+      stop-loss-percent: 5.0
+      take-profit-percent: 15.0
+      max-daily-loss-percent: 20.0
+    
+    # Trading Pairs
+    trading-pairs:
+      - BTC-USDT
+      - ETH-USDT
+      - ADA-USDT
+    
+    # Technical Indicators
+    indicators:
+      rsi-period: 14
+      macd-fast: 12
+      macd-slow: 26
+      macd-signal: 9
+      bollinger-period: 20
+      bollinger-multiplier: 2.0
+
+# Logging Configuration
+logging:
+  level:
+    com.trading: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/trading-bot.log
+
+# Management Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# Custom Application Properties
+app:
+  encryption:
+    key: ${ENCRYPTION_KEY:mySecretEncryptionKey123}
+  
+  websocket:
+    endpoint: /ws
+    topic: /topic/trading-updates
+    
+  scheduler:
+    trading-interval: 30000  # 30 seconds
+    data-fetch-interval: 10000  # 10 seconds
+    ml-training-interval: 300000  # 5 minutes

@@ -1,0 +1,92 @@
+spring:
+  application:
+    name: crypto-trading-bot-test
+  
+  # Test Database Configuration
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  h2:
+    console:
+      enabled: false
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+  
+  # Security Configuration for Tests
+  security:
+    user:
+      name: testuser
+      password: testpass
+      roles: ADMIN
+
+# Test Trading Bot Configuration
+trading:
+  bot:
+    mode: SHADOW
+    virtual-balance: 1000.0
+    
+    kucoin:
+      api-key: test-api-key
+      secret-key: test-secret-key
+      passphrase: test-passphrase
+      sandbox: true
+    
+    neural-network:
+      learning-rate: 0.01
+      epochs: 10
+      batch-size: 16
+      hidden-layers: [32, 16, 8]
+      input-features: 20
+      
+    risk:
+      max-position-size-percent: 5.0
+      stop-loss-percent: 3.0
+      take-profit-percent: 10.0
+      max-daily-loss-percent: 15.0
+    
+    trading-pairs:
+      - BTC-USDT
+      - ETH-USDT
+    
+    indicators:
+      rsi-period: 14
+      macd-fast: 12
+      macd-slow: 26
+      macd-signal: 9
+      bollinger-period: 20
+      bollinger-multiplier: 2.0
+
+# Logging Configuration for Tests
+logging:
+  level:
+    com.trading: DEBUG
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.deeplearning4j: WARN
+    org.nd4j: WARN
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Test Application Properties
+app:
+  encryption:
+    key: testEncryptionKey123456789012
+  
+  websocket:
+    endpoint: /test-ws
+    topic: /topic/test-updates
+    
+  scheduler:
+    trading-interval: 60000  # 1 minute for tests
+    data-fetch-interval: 30000  # 30 seconds for tests
+    ml-training-interval: 120000  # 2 minutes for tests

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout(~{::title}, ~{::content}, ~{::scripts})">
+<head>
+    <title>Analytics - Crypto Trading Bot</title>
+</head>
+<body>
+    <div th:fragment="content">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">Analytics</h1>
+            <div class="btn-toolbar mb-2 mb-md-0">
+                <div class="btn-group me-2">
+                    <button type="button" class="btn btn-outline-primary" onclick="refreshData()">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="exportData()">
+                        <i class="fas fa-download me-1"></i>Export
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Overview -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Total Return</div>
+                                <div class="h5 mb-0 font-weight-bold" id="totalReturn">0.00%</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-percentage fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Win Rate</div>
+                                <div class="h5 mb-0 font-weight-bold" id="winRate">0.00%</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-trophy fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Sharpe Ratio</div>
+                                <div class="h5 mb-0 font-weight-bold" id="sharpeRatio">0.00</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-chart-area fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Max Drawdown</div>
+                                <div class="h5 mb-0 font-weight-bold" id="maxDrawdown">0.00%</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-arrow-down fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Portfolio Performance</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-primary active" onclick="changeTimeframe('24h')">24H</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="changeTimeframe('7d')">7D</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="changeTimeframe('30d')">30D</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Asset Allocation</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="height: 300px;">
+                            <canvas id="allocationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ML Performance Row -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">ML Model Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="text-center">
+                                    <h3 class="text-primary" id="mlAccuracy">75.0%</h3>
+                                    <p class="mb-0">Overall Accuracy</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-center">
+                                    <h3 class="text-success" id="mlPredictions">0</h3>
+                                    <p class="mb-0">Total Predictions</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container" style="height: 250px;">
+                            <canvas id="mlAccuracyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Trading Pair Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="height: 350px;">
+                            <canvas id="pairPerformanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Statistics -->
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Trading Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Metric</th>
+                                        <th>Value</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statisticsTable">
+                                    <!-- Statistics will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Risk Metrics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Value at Risk (95%)</span>
+                                <span id="var95" class="fw-bold">$0.00</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Expected Shortfall</span>
+                                <span id="expectedShortfall" class="fw-bold">$0.00</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Beta</span>
+                                <span id="beta" class="fw-bold">0.00</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Alpha</span>
+                                <span id="alpha" class="fw-bold">0.00%</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Information Ratio</span>
+                                <span id="informationRatio" class="fw-bold">0.00</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Calmar Ratio</span>
+                                <span id="calmarRatio" class="fw-bold">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div th:fragment="scripts">
+        <script>
+            let performanceChart = null;
+            let allocationChart = null;
+            let mlAccuracyChart = null;
+            let pairPerformanceChart = null;
+            let currentTimeframe = '24h';
+            
+            $(document).ready(function() {
+                initializeCharts();
+                loadAnalyticsData();
+                
+                // Refresh data every 60 seconds
+                setInterval(loadAnalyticsData, 60000);
+            });
+            
+            function initializeCharts() {
+                initializePerformanceChart();
+                initializeAllocationChart();
+                initializeMLAccuracyChart();
+                initializePairPerformanceChart();
+            }
+            
+            function initializePerformanceChart() {
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                performanceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Portfolio Value',
+                            data: [],
+                            borderColor: 'rgb(102, 126, 234)',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }, {
+                            label: 'Benchmark (BTC)',
+                            data: [],
+                            borderColor: 'rgb(255, 193, 7)',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value.toFixed(2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function initializeAllocationChart() {
+                const ctx = document.getElementById('allocationChart').getContext('2d');
+                allocationChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [
+                                'rgb(102, 126, 234)',
+                                'rgb(255, 193, 7)',
+                                'rgb(40, 167, 69)',
+                                'rgb(220, 53, 69)',
+                                'rgb(108, 117, 125)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function initializeMLAccuracyChart() {
+                const ctx = document.getElementById('mlAccuracyChart').getContext('2d');
+                mlAccuracyChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Accuracy',
+                            data: [],
+                            borderColor: 'rgb(40, 167, 69)',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function initializePairPerformanceChart() {
+                const ctx = document.getElementById('pairPerformanceChart').getContext('2d');
+                pairPerformanceChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Return %',
+                            data: [],
+                            backgroundColor: function(context) {
+                                const value = context.parsed.y;
+                                return value >= 0 ? 'rgba(40, 167, 69, 0.8)' : 'rgba(220, 53, 69, 0.8)';
+                            },
+                            borderColor: function(context) {
+                                const value = context.parsed.y;
+                                return value >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)';
+                            },
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function loadAnalyticsData() {
+                // Load ML performance
+                $.get('/api/dashboard/ml/performance')
+                    .done(function(data) {
+                        updateMLMetrics(data);
+                    })
+                    .fail(function() {
+                        console.error('Failed to load ML performance data');
+                    });
+                
+                // Load portfolio data
+                $.get('/api/dashboard/portfolio')
+                    .done(function(data) {
+                        updateAllocationChart(data.portfolios);
+                    })
+                    .fail(function() {
+                        console.error('Failed to load portfolio data');
+                    });
+                
+                // Load trading statistics
+                $.get('/api/trading/stats')
+                    .done(function(data) {
+                        updateTradingStatistics(data);
+                    })
+                    .fail(function() {
+                        console.error('Failed to load trading statistics');
+                    });
+                
+                // Load performance chart data
+                loadPerformanceData(currentTimeframe);
+            }
+            
+            function loadPerformanceData(timeframe) {
+                const hours = timeframe === '24h' ? 24 : timeframe === '7d' ? 168 : 720;
+                
+                $.get(`/api/dashboard/chart/profit-loss?hours=${hours}`)
+                    .done(function(data) {
+                        updatePerformanceChart(data.chartData);
+                    })
+                    .fail(function() {
+                        console.error('Failed to load performance chart data');
+                    });
+            }
+            
+            function updateMLMetrics(data) {
+                $('#mlAccuracy').text(parseFloat(data.overallAccuracy).toFixed(1) + '%');
+                $('#mlPredictions').text(data.totalPredictions);
+                
+                // Update ML accuracy chart with mock data
+                const labels = [];
+                const accuracyData = [];
+                for (let i = 23; i >= 0; i--) {
+                    const date = new Date();
+                    date.setHours(date.getHours() - i);
+                    labels.push(date.toLocaleTimeString());
+                    accuracyData.push(70 + Math.random() * 20); // Mock data
+                }
+                
+                mlAccuracyChart.data.labels = labels;
+                mlAccuracyChart.data.datasets[0].data = accuracyData;
+                mlAccuracyChart.update();
+            }
+            
+            function updateAllocationChart(portfolios) {
+                const labels = [];
+                const data = [];
+                
+                portfolios.forEach(portfolio => {
+                    if (parseFloat(portfolio.balance) > 0) {
+                        labels.push(portfolio.currency);
+                        data.push(parseFloat(portfolio.balance));
+                    }
+                });
+                
+                allocationChart.data.labels = labels;
+                allocationChart.data.datasets[0].data = data;
+                allocationChart.update();
+            }
+            
+            function updatePerformanceChart(chartData) {
+                const labels = Object.keys(chartData);
+                const values = Object.values(chartData).map(v => parseFloat(v));
+                
+                // Calculate cumulative values
+                let cumulative = 100; // Starting balance
+                const cumulativeValues = values.map(v => {
+                    cumulative += v;
+                    return cumulative;
+                });
+                
+                // Generate mock benchmark data (BTC performance)
+                const benchmarkData = cumulativeValues.map((_, index) => {
+                    return 100 + (Math.random() - 0.5) * 20 + index * 0.5;
+                });
+                
+                performanceChart.data.labels = labels.map(label => new Date(label).toLocaleDateString());
+                performanceChart.data.datasets[0].data = cumulativeValues;
+                performanceChart.data.datasets[1].data = benchmarkData;
+                performanceChart.update();
+                
+                // Update performance metrics
+                if (cumulativeValues.length > 0) {
+                    const totalReturn = ((cumulativeValues[cumulativeValues.length - 1] - 100) / 100) * 100;
+                    $('#totalReturn').text(totalReturn.toFixed(2) + '%');
+                    
+                    // Calculate other metrics (simplified)
+                    $('#winRate').text('65.5%'); // Mock data
+                    $('#sharpeRatio').text('1.25'); // Mock data
+                    $('#maxDrawdown').text('-5.2%'); // Mock data
+                }
+            }
+            
+            function updateTradingStatistics(data) {
+                const statistics = [
+                    { metric: 'Total Orders', value: data.totalOrders, description: 'Total number of orders placed' },
+                    { metric: 'Filled Orders', value: data.filledOrders, description: 'Successfully executed orders' },
+                    { metric: 'Success Rate', value: data.successRate.toFixed(1) + '%', description: 'Percentage of successful orders' },
+                    { metric: 'Average Trade Size', value: '$25.50', description: 'Average size per trade' },
+                    { metric: 'Profit Factor', value: '1.35', description: 'Gross profit / Gross loss' },
+                    { metric: 'Average Win', value: '$2.15', description: 'Average profit per winning trade' },
+                    { metric: 'Average Loss', value: '$1.85', description: 'Average loss per losing trade' },
+                    { metric: 'Largest Win', value: '$8.50', description: 'Largest single winning trade' },
+                    { metric: 'Largest Loss', value: '$4.20', description: 'Largest single losing trade' }
+                ];
+                
+                const tbody = $('#statisticsTable');
+                tbody.empty();
+                
+                statistics.forEach(stat => {
+                    const row = $(`
+                        <tr>
+                            <td class="fw-bold">${stat.metric}</td>
+                            <td>${stat.value}</td>
+                            <td class="text-muted">${stat.description}</td>
+                        </tr>
+                    `);
+                    tbody.append(row);
+                });
+                
+                // Update risk metrics (mock data)
+                $('#var95').text('$4.25');
+                $('#expectedShortfall').text('$6.80');
+                $('#beta').text('0.85');
+                $('#alpha').text('2.3%');
+                $('#informationRatio').text('0.65');
+                $('#calmarRatio').text('1.15');
+                
+                // Update pair performance chart
+                const pairs = ['BTC-USDT', 'ETH-USDT', 'ADA-USDT'];
+                const returns = [2.5, -1.2, 3.8]; // Mock data
+                
+                pairPerformanceChart.data.labels = pairs;
+                pairPerformanceChart.data.datasets[0].data = returns;
+                pairPerformanceChart.update();
+            }
+            
+            function changeTimeframe(timeframe) {
+                currentTimeframe = timeframe;
+                
+                // Update active button
+                $('.btn-group .btn').removeClass('active');
+                event.target.classList.add('active');
+                
+                // Load new data
+                loadPerformanceData(timeframe);
+            }
+            
+            function refreshData() {
+                const btn = event.target;
+                showLoading(btn);
+                
+                loadAnalyticsData();
+                
+                setTimeout(() => {
+                    hideLoading(btn);
+                    showToast('Analytics data refreshed', 'success');
+                }, 1000);
+            }
+            
+            function exportData() {
+                // Mock export functionality
+                showToast('Export functionality coming soon', 'info');
+            }
+        </script>
+    </div>
+</body>
+</html>

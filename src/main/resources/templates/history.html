@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout(~{::title}, ~{::content}, ~{::scripts})">
+<head>
+    <title>Trading History - Crypto Trading Bot</title>
+</head>
+<body>
+    <div th:fragment="content">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">Trading History</h1>
+            <div class="btn-toolbar mb-2 mb-md-0">
+                <div class="btn-group me-2">
+                    <button type="button" class="btn btn-outline-primary" onclick="refreshHistory()">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="exportHistory()">
+                        <i class="fas fa-download me-1"></i>Export CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="timeRange" class="form-label">Time Range</label>
+                        <select class="form-select" id="timeRange" onchange="applyFilters()">
+                            <option value="24h">Last 24 Hours</option>
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d">Last 30 Days</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="tradingPairFilter" class="form-label">Trading Pair</label>
+                        <select class="form-select" id="tradingPairFilter" onchange="applyFilters()">
+                            <option value="">All Pairs</option>
+                            <option value="BTC-USDT">BTC-USDT</option>
+                            <option value="ETH-USDT">ETH-USDT</option>
+                            <option value="ADA-USDT">ADA-USDT</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="actionFilter" class="form-label">Action</label>
+                        <select class="form-select" id="actionFilter" onchange="applyFilters()">
+                            <option value="">All Actions</option>
+                            <option value="BUY">Buy</option>
+                            <option value="SELL">Sell</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="modeFilter" class="form-label">Mode</label>
+                        <select class="form-select" id="modeFilter" onchange="applyFilters()">
+                            <option value="">All Modes</option>
+                            <option value="true">Virtual</option>
+                            <option value="false">Real</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Total Trades</div>
+                                <div class="h5 mb-0 font-weight-bold" id="totalTrades">0</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-exchange-alt fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card positive">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Winning Trades</div>
+                                <div class="h5 mb-0 font-weight-bold" id="winningTrades">0</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-arrow-up fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card negative">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Losing Trades</div>
+                                <div class="h5 mb-0 font-weight-bold" id="losingTrades">0</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-arrow-down fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card" id="netProfitCard">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Net Profit/Loss</div>
+                                <div class="h5 mb-0 font-weight-bold" id="netProfit">$0.00</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-dollar-sign fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trading History Table -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Trade History</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="historyTable">
+                        <thead>
+                            <tr>
+                                <th>Date/Time</th>
+                                <th>Trading Pair</th>
+                                <th>Action</th>
+                                <th>Amount</th>
+                                <th>Price</th>
+                                <th>Total Value</th>
+                                <th>P&L</th>
+                                <th>Balance After</th>
+                                <th>Mode</th>
+                                <th>Strategy</th>
+                                <th>ML Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <!-- Trading history will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <nav aria-label="Trading history pagination">
+                    <ul class="pagination justify-content-center" id="pagination">
+                        <!-- Pagination will be generated here -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div th:fragment="scripts">
+        <script>
+            let currentPage = 1;
+            let totalPages = 1;
+            let allTrades = [];
+            let filteredTrades = [];
+            const tradesPerPage = 20;
+            
+            $(document).ready(function() {
+                loadTradingHistory();
+            });
+            
+            function loadTradingHistory() {
+                const timeRange = $('#timeRange').val();
+                const hours = getHoursFromTimeRange(timeRange);
+                
+                $.get(`/api/dashboard/trading-history?hours=${hours}`)
+                    .done(function(data) {
+                        allTrades = data.trades || [];
+                        applyFilters();
+                        updateSummaryCards();
+                    })
+                    .fail(function() {
+                        console.error('Failed to load trading history');
+                        showToast('Failed to load trading history', 'danger');
+                    });
+            }
+            
+            function getHoursFromTimeRange(timeRange) {
+                switch(timeRange) {
+                    case '24h': return 24;
+                    case '7d': return 168;
+                    case '30d': return 720;
+                    case 'all': return 8760; // 1 year
+                    default: return 24;
+                }
+            }
+            
+            function applyFilters() {
+                const tradingPairFilter = $('#tradingPairFilter').val();
+                const actionFilter = $('#actionFilter').val();
+                const modeFilter = $('#modeFilter').val();
+                
+                filteredTrades = allTrades.filter(trade => {
+                    if (tradingPairFilter && trade.tradingPair !== tradingPairFilter) return false;
+                    if (actionFilter && trade.action !== actionFilter) return false;
+                    if (modeFilter !== '' && trade.isVirtual.toString() !== modeFilter) return false;
+                    return true;
+                });
+                
+                currentPage = 1;
+                updateTable();
+                updatePagination();
+                updateSummaryCards();
+            }
+            
+            function updateTable() {
+                const tbody = $('#historyTableBody');
+                tbody.empty();
+                
+                const startIndex = (currentPage - 1) * tradesPerPage;
+                const endIndex = Math.min(startIndex + tradesPerPage, filteredTrades.length);
+                const pageTrades = filteredTrades.slice(startIndex, endIndex);
+                
+                if (pageTrades.length === 0) {
+                    tbody.append(`
+                        <tr>
+                            <td colspan="11" class="text-center text-muted py-4">
+                                No trading history found for the selected filters
+                            </td>
+                        </tr>
+                    `);
+                    return;
+                }
+                
+                pageTrades.forEach(trade => {
+                    const profitLoss = parseFloat(trade.profitLoss || 0);
+                    const totalValue = parseFloat(trade.amount) * parseFloat(trade.price);
+                    const mlConfidence = trade.mlConfidence ? (parseFloat(trade.mlConfidence) * 100).toFixed(1) + '%' : 'N/A';
+                    
+                    const row = $(`
+                        <tr>
+                            <td>${formatDateTime(trade.timestamp)}</td>
+                            <td><span class="badge trading-pair-badge">${trade.tradingPair}</span></td>
+                            <td><span class="badge ${trade.action === 'BUY' ? 'bg-success' : 'bg-danger'}">${trade.action}</span></td>
+                            <td>${parseFloat(trade.amount).toFixed(6)}</td>
+                            <td>$${parseFloat(trade.price).toFixed(2)}</td>
+                            <td>$${totalValue.toFixed(2)}</td>
+                            <td class="${profitLoss >= 0 ? 'text-success' : 'text-danger'} fw-bold">
+                                ${profitLoss >= 0 ? '+' : ''}$${profitLoss.toFixed(2)}
+                            </td>
+                            <td>$${parseFloat(trade.balanceAfter).toFixed(2)}</td>
+                            <td><span class="badge ${trade.isVirtual ? 'bg-info' : 'bg-warning'}">${trade.isVirtual ? 'Virtual' : 'Real'}</span></td>
+                            <td>${trade.strategyUsed || 'N/A'}</td>
+                            <td>${mlConfidence}</td>
+                        </tr>
+                    `);
+                    tbody.append(row);
+                });
+            }
+            
+            function updatePagination() {
+                totalPages = Math.ceil(filteredTrades.length / tradesPerPage);
+                const pagination = $('#pagination');
+                pagination.empty();
+                
+                if (totalPages <= 1) return;
+                
+                // Previous button
+                const prevDisabled = currentPage === 1 ? 'disabled' : '';
+                pagination.append(`
+                    <li class="page-item ${prevDisabled}">
+                        <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a>
+                    </li>
+                `);
+                
+                // Page numbers
+                const startPage = Math.max(1, currentPage - 2);
+                const endPage = Math.min(totalPages, currentPage + 2);
+                
+                if (startPage > 1) {
+                    pagination.append(`<li class="page-item"><a class="page-link" href="#" onclick="changePage(1)">1</a></li>`);
+                    if (startPage > 2) {
+                        pagination.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
+                    }
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                    const active = i === currentPage ? 'active' : '';
+                    pagination.append(`
+                        <li class="page-item ${active}">
+                            <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                        </li>
+                    `);
+                }
+                
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                        pagination.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
+                    }
+                    pagination.append(`<li class="page-item"><a class="page-link" href="#" onclick="changePage(${totalPages})">${totalPages}</a></li>`);
+                }
+                
+                // Next button
+                const nextDisabled = currentPage === totalPages ? 'disabled' : '';
+                pagination.append(`
+                    <li class="page-item ${nextDisabled}">
+                        <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>
+                    </li>
+                `);
+            }
+            
+            function updateSummaryCards() {
+                const totalTrades = filteredTrades.length;
+                const winningTrades = filteredTrades.filter(trade => parseFloat(trade.profitLoss || 0) > 0).length;
+                const losingTrades = filteredTrades.filter(trade => parseFloat(trade.profitLoss || 0) < 0).length;
+                const netProfit = filteredTrades.reduce((sum, trade) => sum + parseFloat(trade.profitLoss || 0), 0);
+                
+                $('#totalTrades').text(totalTrades);
+                $('#winningTrades').text(winningTrades);
+                $('#losingTrades').text(losingTrades);
+                $('#netProfit').text(formatCurrency(netProfit));
+                
+                // Update net profit card color
+                const netProfitCard = $('#netProfitCard');
+                netProfitCard.removeClass('positive negative');
+                if (netProfit > 0) {
+                    netProfitCard.addClass('positive');
+                } else if (netProfit < 0) {
+                    netProfitCard.addClass('negative');
+                }
+            }
+            
+            function changePage(page) {
+                if (page < 1 || page > totalPages) return;
+                currentPage = page;
+                updateTable();
+                updatePagination();
+            }
+            
+            function refreshHistory() {
+                const btn = event.target;
+                showLoading(btn);
+                
+                loadTradingHistory();
+                
+                setTimeout(() => {
+                    hideLoading(btn);
+                    showToast('Trading history refreshed', 'success');
+                }, 1000);
+            }
+            
+            function exportHistory() {
+                if (filteredTrades.length === 0) {
+                    showToast('No data to export', 'warning');
+                    return;
+                }
+                
+                // Create CSV content
+                const headers = ['Date/Time', 'Trading Pair', 'Action', 'Amount', 'Price', 'Total Value', 'P&L', 'Balance After', 'Mode', 'Strategy', 'ML Confidence'];
+                const csvContent = [
+                    headers.join(','),
+                    ...filteredTrades.map(trade => {
+                        const totalValue = parseFloat(trade.amount) * parseFloat(trade.price);
+                        const mlConfidence = trade.mlConfidence ? (parseFloat(trade.mlConfidence) * 100).toFixed(1) : 'N/A';
+                        
+                        return [
+                            `"${formatDateTime(trade.timestamp)}"`,
+                            trade.tradingPair,
+                            trade.action,
+                            parseFloat(trade.amount).toFixed(6),
+                            parseFloat(trade.price).toFixed(2),
+                            totalValue.toFixed(2),
+                            parseFloat(trade.profitLoss || 0).toFixed(2),
+                            parseFloat(trade.balanceAfter).toFixed(2),
+                            trade.isVirtual ? 'Virtual' : 'Real',
+                            trade.strategyUsed || 'N/A',
+                            mlConfidence
+                        ].join(',');
+                    })
+                ].join('\n');
+                
+                // Download CSV
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `trading_history_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showToast('Trading history exported successfully', 'success');
+            }
+            
+            function formatDateTime(timestamp) {
+                const date = new Date(timestamp);
+                return date.toLocaleString();
+            }
+        </script>
+    </div>
+</body>
+</html>

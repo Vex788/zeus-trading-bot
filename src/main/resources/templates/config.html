@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="layout :: layout(~{::title}, ~{::content}, ~{::scripts})">
+<head>
+    <title>Configuration - Crypto Trading Bot</title>
+</head>
+<body>
+    <div th:fragment="content">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">Configuration</h1>
+            <div class="btn-toolbar mb-2 mb-md-0">
+                <button type="button" class="btn btn-trading" onclick="saveConfiguration()">
+                    <i class="fas fa-save me-1"></i>Save Configuration
+                </button>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Trading Mode -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Trading Mode</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Current Mode</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tradingMode" id="shadowMode" value="SHADOW" checked>
+                                <label class="form-check-label" for="shadowMode">
+                                    <strong>Shadow Mode</strong> - Virtual trading with $100 starting balance
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tradingMode" id="productionMode" value="PRODUCTION">
+                                <label class="form-check-label" for="productionMode">
+                                    <strong>Production Mode</strong> - Real trading with actual funds
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="virtualBalance" class="form-label">Virtual Balance (Shadow Mode)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="virtualBalance" value="100" min="10" max="10000" step="10">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary" onclick="switchMode()">
+                            Switch Mode
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KuCoin API Configuration -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">KuCoin API Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="apiKey" class="form-label">API Key</label>
+                            <input type="password" class="form-control" id="apiKey" placeholder="Enter your KuCoin API key">
+                        </div>
+                        <div class="mb-3">
+                            <label for="secretKey" class="form-label">Secret Key</label>
+                            <input type="password" class="form-control" id="secretKey" placeholder="Enter your KuCoin secret key">
+                        </div>
+                        <div class="mb-3">
+                            <label for="passphrase" class="form-label">Passphrase</label>
+                            <input type="password" class="form-control" id="passphrase" placeholder="Enter your KuCoin passphrase">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="sandboxMode" checked>
+                                <label class="form-check-label" for="sandboxMode">
+                                    Use Sandbox Environment (Recommended for testing)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary" onclick="saveApiCredentials()">
+                                Save Credentials
+                            </button>
+                            <button type="button" class="btn btn-outline-success" onclick="testApiConnection()">
+                                Test Connection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Risk Management -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Risk Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="maxPositionSize" class="form-label">Max Position Size (%)</label>
+                            <input type="range" class="form-range" id="maxPositionSize" min="1" max="50" value="10" oninput="updateRangeValue('maxPositionSize')">
+                            <div class="d-flex justify-content-between">
+                                <small>1%</small>
+                                <span id="maxPositionSizeValue" class="badge bg-primary">10%</span>
+                                <small>50%</small>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="stopLoss" class="form-label">Stop Loss (%)</label>
+                            <input type="range" class="form-range" id="stopLoss" min="1" max="20" value="5" oninput="updateRangeValue('stopLoss')">
+                            <div class="d-flex justify-content-between">
+                                <small>1%</small>
+                                <span id="stopLossValue" class="badge bg-danger">5%</span>
+                                <small>20%</small>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="takeProfit" class="form-label">Take Profit (%)</label>
+                            <input type="range" class="form-range" id="takeProfit" min="5" max="50" value="15" oninput="updateRangeValue('takeProfit')">
+                            <div class="d-flex justify-content-between">
+                                <small>5%</small>
+                                <span id="takeProfitValue" class="badge bg-success">15%</span>
+                                <small>50%</small>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="maxDailyLoss" class="form-label">Max Daily Loss (%)</label>
+                            <input type="range" class="form-range" id="maxDailyLoss" min="5" max="50" value="20" oninput="updateRangeValue('maxDailyLoss')">
+                            <div class="d-flex justify-content-between">
+                                <small>5%</small>
+                                <span id="maxDailyLossValue" class="badge bg-warning">20%</span>
+                                <small>50%</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Neural Network Configuration -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Neural Network Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="learningRate" class="form-label">Learning Rate</label>
+                            <select class="form-select" id="learningRate">
+                                <option value="0.0001">0.0001 (Very Low)</option>
+                                <option value="0.001" selected>0.001 (Low)</option>
+                                <option value="0.01">0.01 (Medium)</option>
+                                <option value="0.1">0.1 (High)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="epochs" class="form-label">Training Epochs</label>
+                            <input type="number" class="form-control" id="epochs" value="100" min="10" max="1000" step="10">
+                        </div>
+                        <div class="mb-3">
+                            <label for="batchSize" class="form-label">Batch Size</label>
+                            <select class="form-select" id="batchSize">
+                                <option value="16">16</option>
+                                <option value="32" selected>32</option>
+                                <option value="64">64</option>
+                                <option value="128">128</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="hiddenLayers" class="form-label">Hidden Layers</label>
+                            <input type="text" class="form-control" id="hiddenLayers" value="64,32,16" placeholder="e.g., 64,32,16">
+                            <div class="form-text">Comma-separated list of layer sizes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Trading Pairs -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Trading Pairs</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Available Pairs</label>
+                            <div id="tradingPairsContainer">
+                                <!-- Trading pairs will be loaded here -->
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary" onclick="loadTradingPairs()">
+                            Refresh Available Pairs
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Technical Indicators -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Technical Indicators</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="rsiPeriod" class="form-label">RSI Period</label>
+                                <input type="number" class="form-control" id="rsiPeriod" value="14" min="5" max="50">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="macdFast" class="form-label">MACD Fast</label>
+                                <input type="number" class="form-control" id="macdFast" value="12" min="5" max="30">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="macdSlow" class="form-label">MACD Slow</label>
+                                <input type="number" class="form-control" id="macdSlow" value="26" min="15" max="50">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="macdSignal" class="form-label">MACD Signal</label>
+                                <input type="number" class="form-control" id="macdSignal" value="9" min="5" max="20">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="bollingerPeriod" class="form-label">Bollinger Period</label>
+                                <input type="number" class="form-control" id="bollingerPeriod" value="20" min="10" max="50">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="bollingerMultiplier" class="form-label">Bollinger Multiplier</label>
+                                <input type="number" class="form-control" id="bollingerMultiplier" value="2.0" min="1.0" max="3.0" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div th:fragment="scripts">
+        <script>
+            $(document).ready(function() {
+                loadCurrentConfiguration();
+                loadTradingPairs();
+            });
+            
+            function loadCurrentConfiguration() {
+                $.get('/api/config/current')
+                    .done(function(config) {
+                        // Update form fields with current configuration
+                        $(`input[name="tradingMode"][value="${config.mode}"]`).prop('checked', true);
+                        $('#virtualBalance').val(parseFloat(config.virtualBalance));
+                        $('#sandboxMode').prop('checked', config.kucoin.sandbox);
+                        
+                        // Risk management
+                        $('#maxPositionSize').val(config.risk.maxPositionSizePercent);
+                        $('#stopLoss').val(config.risk.stopLossPercent);
+                        $('#takeProfit').val(config.risk.takeProfitPercent);
+                        $('#maxDailyLoss').val(config.risk.maxDailyLossPercent);
+                        
+                        // Neural network
+                        $('#learningRate').val(config.neuralNetwork.learningRate);
+                        $('#epochs').val(config.neuralNetwork.epochs);
+                        $('#batchSize').val(config.neuralNetwork.batchSize);
+                        $('#hiddenLayers').val(config.neuralNetwork.hiddenLayers.join(','));
+                        
+                        // Technical indicators
+                        $('#rsiPeriod').val(config.indicators.rsiPeriod);
+                        $('#macdFast').val(config.indicators.macdFast);
+                        $('#macdSlow').val(config.indicators.macdSlow);
+                        $('#macdSignal').val(config.indicators.macdSignal);
+                        $('#bollingerPeriod').val(config.indicators.bollingerPeriod);
+                        $('#bollingerMultiplier').val(config.indicators.bollingerMultiplier);
+                        
+                        // Update range value displays
+                        updateAllRangeValues();
+                    })
+                    .fail(function() {
+                        showToast('Failed to load current configuration', 'danger');
+                    });
+            }
+            
+            function loadTradingPairs() {
+                $.get('/api/config/trading-pairs')
+                    .done(function(data) {
+                        const container = $('#tradingPairsContainer');
+                        container.empty();
+                        
+                        data.available.forEach(pair => {
+                            const isConfigured = data.configured.includes(pair);
+                            const checkbox = $(`
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="pair_${pair}" value="${pair}" ${isConfigured ? 'checked' : ''}>
+                                    <label class="form-check-label" for="pair_${pair}">
+                                        ${pair}
+                                    </label>
+                                </div>
+                            `);
+                            container.append(checkbox);
+                        });
+                    })
+                    .fail(function() {
+                        showToast('Failed to load trading pairs', 'danger');
+                    });
+            }
+            
+            function updateRangeValue(rangeId) {
+                const range = document.getElementById(rangeId);
+                const valueSpan = document.getElementById(rangeId + 'Value');
+                valueSpan.textContent = range.value + '%';
+            }
+            
+            function updateAllRangeValues() {
+                updateRangeValue('maxPositionSize');
+                updateRangeValue('stopLoss');
+                updateRangeValue('takeProfit');
+                updateRangeValue('maxDailyLoss');
+            }
+            
+            function switchMode() {
+                const selectedMode = $('input[name="tradingMode"]:checked').val();
+                
+                $.post('/api/trading/mode/switch', { mode: selectedMode })
+                    .done(function(response) {
+                        if (response.success) {
+                            showToast(`Switched to ${selectedMode} mode successfully`, 'success');
+                        } else {
+                            showToast(response.message, 'warning');
+                        }
+                    })
+                    .fail(function() {
+                        showToast('Failed to switch trading mode', 'danger');
+                    });
+            }
+            
+            function saveApiCredentials() {
+                const credentials = {
+                    apiKey: $('#apiKey').val(),
+                    secretKey: $('#secretKey').val(),
+                    passphrase: $('#passphrase').val()
+                };
+                
+                if (!credentials.apiKey || !credentials.secretKey || !credentials.passphrase) {
+                    showToast('Please fill in all API credentials', 'warning');
+                    return;
+                }
+                
+                $.post('/api/config/kucoin/credentials', credentials)
+                    .done(function(response) {
+                        if (response.success) {
+                            showToast('API credentials saved successfully', 'success');
+                            // Clear the form for security
+                            $('#apiKey, #secretKey, #passphrase').val('');
+                        } else {
+                            showToast(response.message, 'danger');
+                        }
+                    })
+                    .fail(function() {
+                        showToast('Failed to save API credentials', 'danger');
+                    });
+            }
+            
+            function testApiConnection() {
+                const btn = event.target;
+                showLoading(btn);
+                
+                $.post('/api/config/kucoin/test')
+                    .done(function(response) {
+                        if (response.success) {
+                            showToast('API connection test successful', 'success');
+                        } else {
+                            showToast(response.message, 'danger');
+                        }
+                    })
+                    .fail(function() {
+                        showToast('API connection test failed', 'danger');
+                    })
+                    .always(function() {
+                        hideLoading(btn);
+                    });
+            }
+            
+            function saveConfiguration() {
+                const config = {
+                    mode: $('input[name="tradingMode"]:checked').val(),
+                    virtualBalance: parseFloat($('#virtualBalance').val()),
+                    tradingPairs: [],
+                    neuralNetwork: {
+                        learningRate: parseFloat($('#learningRate').val()),
+                        epochs: parseInt($('#epochs').val()),
+                        batchSize: parseInt($('#batchSize').val()),
+                        hiddenLayers: $('#hiddenLayers').val().split(',').map(x => parseInt(x.trim()))
+                    },
+                    risk: {
+                        maxPositionSizePercent: parseFloat($('#maxPositionSize').val()),
+                        stopLossPercent: parseFloat($('#stopLoss').val()),
+                        takeProfitPercent: parseFloat($('#takeProfit').val()),
+                        maxDailyLossPercent: parseFloat($('#maxDailyLoss').val())
+                    },
+                    indicators: {
+                        rsiPeriod: parseInt($('#rsiPeriod').val()),
+                        macdFast: parseInt($('#macdFast').val()),
+                        macdSlow: parseInt($('#macdSlow').val()),
+                        macdSignal: parseInt($('#macdSignal').val()),
+                        bollingerPeriod: parseInt($('#bollingerPeriod').val()),
+                        bollingerMultiplier: parseFloat($('#bollingerMultiplier').val())
+                    }
+                };
+                
+                // Get selected trading pairs
+                $('#tradingPairsContainer input:checked').each(function() {
+                    config.tradingPairs.push($(this).val());
+                });
+                
+                const btn = event.target;
+                showLoading(btn);
+                
+                $.post('/api/config/update', config)
+                    .done(function(response) {
+                        if (response.success) {
+                            showToast('Configuration saved successfully', 'success');
+                        } else {
+                            showToast(response.message, 'danger');
+                        }
+                    })
+                    .fail(function() {
+                        showToast('Failed to save configuration', 'danger');
+                    })
+                    .always(function() {
+                        hideLoading(btn);
+                    });
+            }
+        </script>
+    </div>
+</body>
+</html>
